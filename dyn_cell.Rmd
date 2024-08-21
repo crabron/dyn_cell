@@ -25,7 +25,7 @@ knitr::opts_chunk$set(warning = FALSE, message = FALSE)
 rmarkdown::find_pandoc(dir = "/home/gladkov/.conda/envs/bi/bin")
 knitr::opts_knit$set(root.dir = "~/storage/cellulolit/paper/")
 options(getClass.msg=FALSE)
-source('~/storage/scripts_git_done/functions.R', local = knitr::knit_global())
+source('functions.R', local = knitr::knit_global())
 list.files()
 
 ```
@@ -158,7 +158,9 @@ p.beta.its.mod <- p.beta.its +
                          begin = 0.8, 
                          end = 0.001)
   
-ggarrange(p.beta.16.mod, p.beta.its.mod)
+fig.2 <- ggarrange(p.beta.16.mod, p.beta.its.mod)
+fig.2
+# ggsave(fig.2, filename="../plots_supp/fig2.pdf", width = 10.2, height = 5.7)
 
 ```
 
@@ -327,7 +329,7 @@ ps.f2.c.anc <- norm_anc(ps.f2.c, out.f2.c)
 
 ```
 
-## 16S network analasys
+## 16S network analysis
 
 ```{r, eval=FALSE}
 
@@ -431,7 +433,9 @@ p.net.c <- ggnet2(ig.c.mod,
     theme(legend.position="none")  + 
   ggtitle('C', subtitle = 'modularity - 0.33')
 
-ggarrange(p.net.a, p.net.c)
+fig.3 <- ggarrange(p.net.a, p.net.c)
+fig.3
+ggsave(fig.3, filename="../plots_supp/fig3.pdf", width = 8, height = 4)
 
 ```
 
@@ -443,7 +447,7 @@ tx <- left_join(groups.a, ps.f2.a.anc@tax_table@.Data %>% data.frame() %>% rowna
   add_column(abnd = taxa_sums(ps.f2.a.anc))
 
 
-tx %>% 
+fig.4 <- tx %>% 
   mutate(Phylum = case_when(Phylum %in% "Proteobacteria" ~ Class,
                             !Phylum %in% "Proteobacteria" ~ Phylum) %>% as.factor()) %>% 
   select(c("Genus", "Phylum", "Group", "abnd")) %>% 
@@ -483,6 +487,8 @@ tx %>%
                          end = 0.7) +
   theme(legend.position="bottom") 
 
+fig.4
+
 ```
 
 Groups taxonomy for C
@@ -492,7 +498,7 @@ Groups taxonomy for C
 tx <- left_join(groups.c, ps.f2.c.anc@tax_table@.Data %>% data.frame() %>% rownames_to_column('ID')) %>% 
   add_column(abnd = taxa_sums(ps.f2.c.anc))
 
-tx %>% 
+fig.5 <- tx %>% 
   mutate(Phylum = case_when(Phylum %in% "Proteobacteria" ~ Class,
                             !Phylum %in% "Proteobacteria" ~ Phylum) %>% as.factor()) %>% 
   select(c("Genus", "Phylum", "Group", "abnd")) %>% 
@@ -534,12 +540,39 @@ tx %>%
                          end = 0.7) +
   theme(legend.position="bottom") 
 
+fig.5
+
+ggsave(fig.4, filename="../plots_supp/fig4.pdf", width = 10, height = 8)
+ggsave(fig.5, filename="../plots_supp/fig5.pdf", width = 10, height = 8)
+
+```
+
+```{r,  fig.height= 13, fig.width=10}
+
+groups.a <- data.frame('ID' = modfull.a$names, 'Group' = modfull.a$membership)
+
+id.5 <- ps.f2.a@tax_table %>% 
+  data.frame() %>% 
+  rownames_to_column('ID') %>% 
+  right_join(groups.a) %>% 
+  filter(Group %in% c('4')) %>% 
+  pull('ID')
+
+amp.ff.a <- phyloseq_to_ampvis2(ps.f2.a.anc)
+amp.ff.a.5 <- ampvis2::amp_filter_taxa(amp.ff.c, tax_vector = id.5, normalise = TRUE)
+
+ampvis2::amp_heatmap(amp.ff.a.5,
+            tax_show = 100,
+            tax_aggregate = "OTU",
+            tax_add = "Genus",
+            group_by = "Time",
+            plot_values_size = 4,
+            showRemainingTaxa = TRUE, normalise = FALSE)
+
 ```
 
 
-
 ### adding aspiration plots
-
 
 ```{r, fig.height=5.5, fig.width=9}
 
@@ -549,7 +582,10 @@ er <- estimate_richness(ps.f.r)
 p.alpha.16 <- estimate_richness(ps.f.r) %>% 
   rownames_to_column("ID") %>% 
   mutate(ID = str_sub(ID, 2)) %>% 
-  left_join(ps.f.r@sam_data %>%  data.frame() %>%  rownames_to_column("ID") %>% mutate(Repeat = as.factor(Repeat))) %>% 
+  left_join(ps.f.r@sam_data %>%  
+              data.frame() %>%  
+              rownames_to_column("ID") %>% 
+              mutate(Repeat = as.factor(Repeat))) %>% 
   group_by(Substrate) %>% 
   pivot_longer(c( "Observed", "Shannon", "InvSimpson", "Respiration")) %>% 
   mutate(Index = factor(name, levels = c("Observed", "Shannon", "InvSimpson", "Respiration"))) %>% 
@@ -574,8 +610,15 @@ er.its <- estimate_richness(ps.f.r)
 p.alpha.its <- estimate_richness(psits.f.r) %>% 
   rownames_to_column("ID") %>% 
   mutate(ID = str_sub(ID, 1)) %>% 
-  left_join(psits.f.r@sam_data %>%  data.frame() %>%  rownames_to_column("ID") %>% mutate(Repeat = as.factor(Repeat))) %>% 
-  left_join(ps.f.r@sam_data %>%  data.frame() %>%  rownames_to_column("ID") %>% dplyr::select(c("Repeat", "Respiration")) %>% mutate(Repeat = as.factor(Repeat))) %>% 
+  left_join(psits.f.r@sam_data 
+            %>%  data.frame() 
+            %>%  rownames_to_column("ID")
+            %>% mutate(Repeat = as.factor(Repeat))) %>% 
+  left_join(ps.f.r@sam_data 
+            %>%  data.frame() 
+            %>%  rownames_to_column("ID")
+            %>% dplyr::select(c("Repeat", "Respiration"))
+            %>% mutate(Repeat = as.factor(Repeat))) %>% 
   group_by(Substrate) %>% 
   pivot_longer(c( "Observed", "Shannon", "InvSimpson", "Respiration")) %>% 
   mutate(Index = factor(name, levels = c("Observed", "Shannon", "InvSimpson", "Respiration"))) %>% 
@@ -603,11 +646,15 @@ g_legend<-function(a.gplot){
 mylegend <- g_legend(p.alpha.its)
 
 
-gridExtra::grid.arrange(gridExtra::arrangeGrob(p.alpha.16 + theme(legend.position="none"),
+fig.1 <- gridExtra::grid.arrange(gridExtra::arrangeGrob(p.alpha.16 + theme(legend.position="none"),
                          p.alpha.its + theme(legend.position="none"),
                          nrow=1),
              mylegend, nrow=2,heights=c(12, 1))
 
+
+fig.1
+
+ggsave(fig.1, filename="../plots_supp/fig1.pdf", width = 9, height = 5.5)
 
 ```
 
@@ -642,4 +689,13 @@ vegan::adonis2(dist ~ Substrate + Time, data = metadata)
 sessionInfo()
 
 ```
+
+
+```{r}
+
+
+
+```
+
+
 
